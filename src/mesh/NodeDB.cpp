@@ -406,6 +406,13 @@ NodeDB::NodeDB()
         config.bluetooth.enabled = true;
     }
 #endif
+#if defined(T5_S3_EPAPER_PRO)
+    // T5-S3 EPaper Pro has no other way to configure BLE if it's off — always ensure it's enabled
+    if (!config.bluetooth.enabled) {
+        LOG_INFO("T5_S3_EPAPER_PRO: forcing bluetooth.enabled=true");
+        config.bluetooth.enabled = true;
+    }
+#endif
 
     if (devicestateCRC != crc32Buffer(&devicestate, sizeof(devicestate)))
         saveWhat |= SEGMENT_DEVICESTATE;

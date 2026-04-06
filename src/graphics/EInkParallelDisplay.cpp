@@ -25,10 +25,21 @@
 EInkParallelDisplay::EInkParallelDisplay(uint16_t width, uint16_t height, EpdRotation rot) : epaper(nullptr), rotation(rot)
 {
     LOG_INFO("init EInkParallelDisplay");
-    // Set dimensions in OLEDDisplay base class
     this->geometry = GEOMETRY_RAWMODE;
-    this->displayWidth = width;
+    this->nativeWidth = width;
     this->displayHeight = height;
+
+#if defined(T5_S3_EPAPER_PRO)
+    // The T5-S3 EPaper Pro has ~10px of physical bezel on the left and ~36px on the right.
+    // Shrink the drawable width so right-aligned content never falls under the right bezel.
+    // The left side is handled by per-element margin fixes (batteryX etc.) in SharedUIDisplay.
+    //   displayWidth = 912 px — right content ends at col 912, well inside visible area (~922)
+    this->xOffset = 0;
+    this->displayWidth = width - 10; // 960-10 = 950
+#else
+    this->xOffset = 0;
+    this->displayWidth = width;
+#endif
 
     // Round shortest side up to nearest byte, to prevent truncation causing an undersized buffer
     uint16_t shortSide = min(width, height);
@@ -197,8 +208,12 @@ void EInkParallelDisplay::display(void)
         return;
     }
 
-    // bytes per row in epd format (one byte = 8 horizontal pixels)
+    // bytes per row in the OLED render buffer (one byte = 8 horizontal pixels)
     const uint32_t rowBytes = (w + 7) / 8;
+    // bytes per row in the EPD 1bpp buffer (based on physical panel width)
+    const uint32_t nativeRowBytes = (this->nativeWidth + 7) / 8;
+    // byte offset into each EPD row where rendered content starts (xOffset must be multiple of 8)
+    const uint32_t xOffsetBytes = this->xOffset / 8;
 
     // Get pointers to internal buffers
     uint8_t *cur = epaper->currentBuffer();
@@ -232,10 +247,12 @@ void EInkParallelDisplay::display(void)
 
     // Convert: OLED buffer layout -> FASTEPD 1bpp horizontal-bytes layout into cur,
     // comparing against prev when available to detect changes.
+    // When xOffset>0 the content is shifted right in the EPD buffer so all rendered pixels
+    // land within the physically visible panel area.
     for (uint32_t y = 0; y < h; ++y) {
         const uint32_t base = (y >> 3) * w;               // (y/8) * width
         const uint8_t bitMask = (uint8_t)(1u << (y & 7)); // mask for this row in vertical-byte layout
-        const uint32_t rowBase = y * rowBytes;
+        const uint32_t rowBase = y * nativeRowBytes + xOffsetBytes; // EPD buffer position for this row
 
         // process full 8-pixel bytes
         for (uint32_t xb = 0; xb < rowBytes; ++xb) {
@@ -332,8 +349,8 @@ void EInkParallelDisplay::display(void)
 #ifdef FAST_EPD_PARTIAL_UPDATE_BUG
         // Workaround for FastEPD partial update bug: use clipped fullUpdate instead
         // Build a pixel rectangle for a clipped fullUpdate using the changed columns
-        int startCol = (newLeftByte <= newRightByte) ? (newLeftByte * 8) : 0;
-        int endCol = (newLeftByte <= newRightByte) ? ((newRightByte + 1) * 8 - 1) : (w - 1);
+        int startCol = (newLeftByte <= newRightByte) ? ((int)(xOffsetBytes + newLeftByte) * 8) : (int)this->xOffset;
+        int endCol = (newLeftByte <= newRightByte) ? ((int)(xOffsetBytes + newRightByte + 1) * 8 - 1) : (int)(this->xOffset + w - 1);
 
         BB_RECT rect{startCol, startRow, endCol - startCol + 1, endRow - startRow + 1};
         // LOG_DEBUG("Using clipped fullUpdate rect x=%d y=%d w=%d h=%d", rect.x, rect.y, rect.w, rect.h);

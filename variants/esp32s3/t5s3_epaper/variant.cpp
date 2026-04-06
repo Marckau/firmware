@@ -4,6 +4,7 @@
 
 #include "TouchDrvGT911.hpp"
 #include "Wire.h"
+#include "input/InputBroker.h"
 #include "input/TouchScreenImpl1.h"
 
 TouchDrvGT911 touch;
@@ -16,7 +17,7 @@ bool readTouch(int16_t *x, int16_t *y)
         if (touch.getPoint(&raw_x, &raw_y)) {
             // rotate 90° for landscape
             *x = raw_y;
-            *y = EPD_WIDTH - 1 - raw_x;
+            *y = EPD_HEIGHT - 1 - raw_x;
             LOG_DEBUG("touched(%d/%d)", *x, *y);
             return true;
         }
@@ -33,11 +34,24 @@ void earlyInitVariant()
     pinMode(BOARD_BL_EN, OUTPUT);
 }
 
+// GT911 home button callback — fires INPUT_BROKER_USER_PRESS (same as IO48)
+static void gt911HomeButtonCallback(void *)
+{
+    if (inputBroker) {
+        InputEvent e;
+        e.inputEvent = INPUT_BROKER_USER_PRESS;
+        e.source = "gt911";
+        e.kbchar = 0;
+        inputBroker->queueInputEvent(&e);
+    }
+}
+
 // T5-S3-ePaper Pro specific (late-) init
 void lateInitVariant(void)
 {
     touch.setPins(GT911_PIN_RST, GT911_PIN_INT);
     if (touch.begin(Wire, GT911_SLAVE_ADDRESS_L, GT911_PIN_SDA, GT911_PIN_SCL)) {
+        touch.setHomeButtonCallback(gt911HomeButtonCallback, nullptr);
         touchScreenImpl1 = new TouchScreenImpl1(EPD_WIDTH, EPD_HEIGHT, readTouch);
         touchScreenImpl1->init();
     } else {

@@ -153,7 +153,11 @@ void drawCommonHeader(OLEDDisplay *display, int16_t x, int16_t y, const char *ti
     bool useHorizontalBattery = (currentResolution == ScreenResolution::High && screenW >= screenH);
     const int textY = y + (highlightHeight - FONT_HEIGHT_SMALL) / 2;
 
+#if defined(T5_S3_EPAPER_PRO)
+    int batteryX = 10;
+#else
     int batteryX = 1;
+#endif
     int batteryY = HEADER_OFFSET_Y + 1;
 #if !defined(M5STACK_UNITC6L)
     // === Battery Icons ===

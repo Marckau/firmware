@@ -404,8 +404,34 @@ void NotificationRenderer::drawAlertBannerOverlay(OLEDDisplay *display, OLEDDisp
             inEvent.inputEvent == INPUT_BROKER_ALT_PRESS || inEvent.inputEvent == INPUT_BROKER_UP_LONG) {
             curSelected--;
         } else if (inEvent.inputEvent == INPUT_BROKER_DOWN || inEvent.inputEvent == INPUT_BROKER_RIGHT ||
-                   inEvent.inputEvent == INPUT_BROKER_USER_PRESS || inEvent.inputEvent == INPUT_BROKER_DOWN_LONG) {
+                   inEvent.inputEvent == INPUT_BROKER_DOWN_LONG) {
             curSelected++;
+        } else if (inEvent.inputEvent == INPUT_BROKER_USER_PRESS) {
+            if (inEvent.touchY > 0) {
+                // Position-aware tap: map Y coordinate directly to the tapped option
+                uint8_t lineH = FONT_HEIGHT_SMALL - 3;
+                uint16_t totalLinesEst = lineCount + alertBannerOptions;
+                uint8_t visibleLines = std::min<uint8_t>(totalLinesEst, (display->height() - vPadding * 2) / lineH);
+                int16_t boxTop = (display->height() / 2) - ((int16_t)(visibleLines * lineH + vPadding * 2) / 2);
+                int16_t firstOptionY = boxTop + vPadding + lineCount * lineH;
+                int16_t relY = (int16_t)inEvent.touchY - firstOptionY;
+                int8_t visibleOptions = visibleLines - lineCount;
+                if (relY >= 0 && relY < visibleOptions * lineH) {
+                    curSelected = relY / lineH;
+                    if (optionsEnumPtr != nullptr) {
+                        alertBannerCallback(optionsEnumPtr[curSelected]);
+                        optionsEnumPtr = nullptr;
+                    } else {
+                        alertBannerCallback(curSelected);
+                    }
+                    resetBanner();
+                    return;
+                } else {
+                    curSelected++; // tap outside options area — cycle like a button press
+                }
+            } else {
+                curSelected++; // no touch coords (physical button) — cycle
+            }
         } else if (inEvent.inputEvent == INPUT_BROKER_SELECT) {
             if (optionsEnumPtr != nullptr) {
                 alertBannerCallback(optionsEnumPtr[curSelected]);

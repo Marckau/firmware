@@ -64,6 +64,8 @@ class EInkParallelDisplay : public OLEDDisplay
     uint32_t previousImageHash = 0;
     uint32_t lastUpdateMs = 0;
     int fastRefreshCount = 0;
+    uint16_t nativeWidth = 0; // physical EPD panel width (EPD buffer row stride = nativeWidth/8)
+    uint16_t xOffset = 0;     // pixel offset (must be multiple of 8) applied when writing to EPD buffer
 };
 
 #endif

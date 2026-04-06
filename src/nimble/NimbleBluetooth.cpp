@@ -954,7 +954,11 @@ void NimbleBluetooth::startAdvertising()
     pAdvertising->reset();
     pAdvertising->addServiceUUID(MESH_SERVICE_UUID);
     pAdvertising->addServiceUUID(NimBLEUUID((uint16_t)0x180f)); // 0x180F is the Battery Service
-    pAdvertising->start(0);
+    if (pAdvertising->start(0)) {
+        LOG_INFO("BLE advertising started, name=%s", getDeviceName());
+    } else {
+        LOG_ERROR("BLE advertising failed to start");
+    }
 #endif
 }
 

@@ -44,6 +44,10 @@
 #define PIN_BUTTON2 0
 #define ALT_BUTTON_PIN PIN_BUTTON2
 #else
+// GPIO48 is the CKV signal for the EPDiy V7 display driver (FastEPD ioCKV).
+// It cannot be used as a button on V2 — the LCD_CAM peripheral owns it as an output.
+// Use BOOT (GPIO0) as the only physical user button. The GT911 on-screen home button
+// also fires INPUT_BROKER_USER_PRESS for a second "main button" feel.
 #define BUTTON_PIN 0
 #endif
 
